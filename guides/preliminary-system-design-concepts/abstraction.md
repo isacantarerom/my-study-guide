@@ -297,7 +297,7 @@ Before moving to the next topic, answer these without looking:
 
 ---
 
-*⬅️ Previous: — &nbsp;|&nbsp; ➡️ Next: [Databases & Storage](databases.md)*
+*⬅️ Previous: — &nbsp;|&nbsp; ➡️ Next: [Network Abstraction : Remote procedure calls](networkAbstraction.md)*
 
 ---
 

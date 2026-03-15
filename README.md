@@ -10,21 +10,15 @@ These notes are inspired by real system design interview topics and distributed 
 
 | Topic | Guide |
 |------|------|
-Abstraction | [Read Guide](guides/abstraction.md)
-Databases | Coming soon
-Caching | Coming soon
-Load Balancing | Coming soon
+Preliminary System Design Concepts | [Read Guide](guides/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)
+More topics | Coming soon
 
 ---
 
 ## Learning Path
 
 1. Abstraction
-2. Databases
-3. Caching
-4. Load Balancing
-5. Message Queues
-6. Distributed Consistency
+2. TBD....
 
 ---
 
