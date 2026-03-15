@@ -6,19 +6,13 @@ These notes are inspired by real system design interview topics and distributed 
 
 ---
 
-## Core Concepts
+## Core Concepts -> Ordered by the suggested Learning Path in the Syllabus of Grokking System Design Interview
 
 | Topic | Guide |
 |------|------|
 Preliminary System Design Concepts | [Read Guide](guides/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)
 More topics | Coming soon
 
----
-
-## Learning Path
-
-1. Abstraction
-2. TBD....
 
 ---
 
@@ -30,3 +24,8 @@ Each guide focuses on:
 - core intuition
 - real-world abstractions
 - interview reasoning
+
+
+
+## TLDR
+[Start Here](guides/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)

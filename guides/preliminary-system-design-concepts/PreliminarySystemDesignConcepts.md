@@ -6,5 +6,5 @@ Grasp the fundamentals of abstractions in distributed systems, focusing on netwo
 
 | Topic | Guide |
 |------|------|
-Abstraction | [Read Guide](abstracion.ms)
+Abstraction | [Read Guide](abstracion.md)
 Network Abstraction: Remote Procedure Calls | [Read Guide](networkAbstraction.md)
