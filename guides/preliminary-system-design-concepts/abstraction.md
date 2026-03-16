@@ -2,7 +2,7 @@
 
 > *"The art of hiding what's underneath — so builders above can think clearly, and systems below can change freely."*
 
-**⏱ Reading time:** ~10 minutes &nbsp;|&nbsp; **📍 Series:** Grokking System Design &nbsp;|&nbsp; **🗂 Topic #1:** Core Concepts
+**⏱ Reading time:** ~10 minutes &nbsp;|&nbsp; **📍 Series:** Grokking System Design &nbsp;|&nbsp; **🗂 Topic #1:** Preliminary Concepts
 
 ---
 
