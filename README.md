@@ -6,11 +6,12 @@ These notes are inspired by real system design interview topics and distributed 
 
 ---
 
-## Core Concepts -> Ordered by the suggested Learning Path in the Syllabus of Grokking System Design Interview
+## Core Concepts 
+ - Ordered by the suggested Learning Path in the Syllabus of Grokking System Design Interview
 
 | Topic | Guide |
 |------|------|
-Preliminary System Design Concepts | [Read Guide](guides/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)
+Preliminary System Design Concepts | [Read Guide](core-concepts/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)
 More topics | Coming soon
 
 
@@ -28,4 +29,4 @@ Each guide focuses on:
 
 
 ## TLDR
-[Start Here](guides/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)
+[Start Here](core-concepts/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)

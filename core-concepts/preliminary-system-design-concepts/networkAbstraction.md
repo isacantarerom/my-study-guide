@@ -2,7 +2,7 @@
 
 > *"What if calling a function on another machine felt exactly like calling one on your own?"*
 
-**⏱ Reading time:** ~12 minutes &nbsp;|&nbsp; **📍 Series:** Grokking System Design &nbsp;|&nbsp; **🗂 Topic #1:** Preliminary Concepts
+**⏱ Reading time:** ~12 minutes &nbsp;|&nbsp; **📍 Series:** Grokking System Design &nbsp;|&nbsp; **🗂 Topic #2:** Preliminary Concepts
 
 ---
 
