@@ -1,32 +1,38 @@
-# System Design Foundations
+# 🗂️ System Design Foundations
 
-A curated collection of short guides for learning system design concepts.
+> *A collection of guides for understanding system design — built for anyone who wants to actually learn this, not just pass a test.*
 
-These notes are inspired by real system design interview topics and distributed system fundamentals.
+These notes are written to build genuine understanding of how distributed systems work, why they're designed the way they are, and what tradeoffs are being made at every layer.
 
----
-
-## Core Concepts 
- - Ordered by the suggested Learning Path in the Syllabus of Grokking System Design Interview
-
-| Topic | Guide |
-|------|------|
-Preliminary System Design Concepts | [Read Guide](core-concepts/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)
-More topics | Coming soon
-
+Learning something is already a success. These guides are here to accompany that process, whatever it looks like for you.
 
 ---
 
-## About
+## Sections
 
-These notes are designed to be **10–15 minute deep dives** into the concepts that appear most often in system design interviews.
+> Ordered by the Grokking System Design Interview syllabus. Read them in sequence — each section builds on the last.
 
-Each guide focuses on:
-- core intuition
-- real-world abstractions
-- interview reasoning
+| Section | Topics | Guide |
+|---------|--------|-------|
+| **Preliminary System Design Concepts** | Abstraction, RPC, Consistency Models, Failure Models | [Read →](core-concepts/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md) |
+| **Non-Functional System Characteristics** | Availability, Reliability, Scalability, Fault Tolerance | Coming soon |
+| **Back-of-the-Envelope Calculations** | Estimating servers, storage, and bandwidth | Coming soon |
+| **Building Blocks** | DNS, Load Balancers, Databases, Caches, Queues, CDN, and more | Coming soon |
 
+---
 
+## How to Use This Repo
+
+Each guide is a **10–15 minute read** built around three things:
+
+- **Core intuition** — understanding *why* something works the way it does, not just what it is
+- **Real-world grounding** — concrete examples and analogies that make abstract concepts stick
+- **Honest tradeoffs** — every design decision has a cost; these guides don't hide that
+
+At the end of each guide there's a **Self-Check** section — a set of questions to answer without looking back. Don't skip it. The self-check is where the reading becomes understanding.
+
+---
 
 ## TLDR
-[Start Here](core-concepts/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)
+
+**→ [Start Here](core-concepts/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)**
