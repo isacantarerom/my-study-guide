@@ -15,33 +15,31 @@
 5. [PACELC: The More Complete Picture](#5-pacelc-the-more-complete-picture)
 6. [Consistency in Practice: Real Systems](#6-consistency-in-practice-real-systems)
 7. [How to Choose a Consistency Model](#7-how-to-choose-a-consistency-model)
-8. [Applying This in an Interview](#8-applying-this-in-an-interview)
-9. [Worked Example: Social Media Feed vs. Bank Transfer](#9-worked-example-social-media-feed-vs-bank-transfer)
-10. [Self-Check](#10-self-check)
-11. [References](#11-references)
+8. [Worked Example: Social Media Feed vs. Bank Transfer](#8-worked-example-social-media-feed-vs-bank-transfer)
+9. [Self-Check](#9-self-check)
+10. [References](#10-references)
 
 ---
 
 ## 1. Why Consistency Is a Spectrum
 
-In the [RPC guide](networkAbstraction.md), we saw that distributed systems introduce failure modes that don't exist on a single machine. One of the most profound of these is the **consistency problem**: when data is stored on multiple machines, how do you guarantee that every reader sees the same version of that data?
+In [RPC](networkAbstraction.md), we saw that distributed systems introduce failure modes that don't exist on a single machine. One of the most profound is the **consistency problem**: when data is stored on multiple machines, how do you guarantee that every reader sees the same version of that data?
 
-The naive answer is "always show the latest data." The distributed systems answer is: *that's extremely expensive, and often unnecessary.*
+The naive answer is "always show the latest data." The reality is that guaranteeing this across multiple machines requires coordination — and coordination is expensive. Every time you want to guarantee that a write has reached all replicas before acknowledging it, you're adding latency. Every time you want to guarantee a read reflects the absolute latest write, you're paying a coordination cost.
 
-Consistency is not binary. It exists on a spectrum from **strongest** (every read sees the most recent write, guaranteed) to **weakest** (reads may see stale data, but the system is fast and always available).
+In many cases, that cost is worth it. In many others, it isn't — and forcing it where it isn't needed makes systems slower and more fragile than they need to be.
 
-**Every consistency model is a tradeoff between three things:**
-- How fresh the data is that readers see
-- How fast reads and writes can complete
-- How available the system is during failures
-
-There is no free lunch. Understanding the spectrum is how you justify your design choices in an interview.
+Consistency models exist to give you **precise language for describing what guarantees you're making to your users** and what you're trading away to make those guarantees. Understanding them is what lets you make deliberate choices instead of accidental ones.
 
 ---
 
 ## 2. The Core Problem: Replication
 
-Consistency problems arise because of **replication** — storing copies of data on multiple nodes for durability and availability.
+Consistency problems arise because of **replication** — storing copies of data across multiple nodes.
+
+Replication is not optional in systems that need to survive failures. If you have one copy of your data and the machine it lives on fails, your data is gone. So you replicate: multiple nodes hold copies, and if one goes down, others can serve reads and accept writes.
+
+But replication takes time. Even on fast networks, there is a propagation delay between when a write lands on the primary node and when all replicas reflect it. What happens if someone reads from a replica during that window?
 
 ```
          Write: "balance = $500"
@@ -51,7 +49,7 @@ Consistency problems arise because of **replication** — storing copies of data
          │   Primary Node  │  ← Write lands here first
          │  balance = $500 │
          └────────┬────────┘
-                  │  Replicate...
+                  │  Replicating...
          ┌────────┴────────┐
          │                 │
          ▼                 ▼
@@ -60,20 +58,20 @@ Consistency problems arise because of **replication** — storing copies of data
   │balance = ?  │   │balance = ?  │
   └─────────────┘   └─────────────┘
 
-  If a reader hits Replica A or B before replication completes,
-  what do they see? That's the consistency problem.
+  A reader hitting Replica A or B during replication
+  sees stale data. That's the consistency problem.
 ```
 
-Replication takes time. Even on fast networks, there is a propagation delay between when a write lands on the primary and when all replicas reflect it. Every consistency model is essentially a set of rules governing what happens in that window.
+Every consistency model is essentially a set of rules for what happens in that replication window — who can read what, under what guarantees, with what coordination required.
 
 ---
 
 ## 3. The Consistency Models — From Strongest to Weakest
 
-Think of this as a dial. Turning it toward **strong** gives you accuracy at the cost of speed and availability. Turning it toward **weak** gives you speed and availability at the cost of accuracy.
+Think of this as a dial. Turning toward **strong** gives you accuracy at the cost of speed and availability. Turning toward **weak** gives you speed and availability at the cost of accuracy. Neither extreme is universally correct — the right setting depends on what your system is doing and what the cost of a wrong answer is.
 
 ```
-STRONG ◄────────────────────────────────────────────────► WEAK
+STRONG ◄──────────────────────────────────────────────► WEAK
 
   Linearizable    Sequential    Causal    Eventual    Weak
   (Strict)        Consistency   Consistency  Consistency  Consistency
@@ -83,40 +81,40 @@ STRONG ◄───────────────────────�
 
 ### 🔴 Linearizability (Strict Consistency)
 
-**The gold standard. The strongest guarantee.**
+**The strongest guarantee. The most expensive.**
 
-Every read reflects the most recent write, and operations appear to happen instantaneously in a single global order. From any client's perspective, the system behaves as if there is only one copy of the data.
+Every read reflects the most recent write, period. Operations appear to execute instantaneously in a single global order. From any client's perspective, the system behaves as if there is exactly one copy of the data.
 
 ```
 Timeline:
   Client A writes x = 5   ──────────────────────►
   Client B reads x         ────────────────────────► must see x = 5
-                                                      (no exceptions)
+                                                      no exceptions, no timing windows
 ```
 
-**What it costs:** To achieve this, the system must coordinate across nodes on every write — typically using a consensus protocol like Paxos or Raft. This adds latency to every operation and means the system may be unavailable during a network partition.
+To achieve this, the system must coordinate across nodes on every write — typically using a consensus protocol like Paxos or Raft. Every participating node must acknowledge a write before it's considered complete. This adds latency to every operation, and it means that during a network partition, the system may refuse to serve requests at all rather than risk returning stale data.
 
-**When to use it:** Financial transactions, leader election, any operation where returning stale data would be catastrophic.
+Linearizability is the right choice when the consequence of returning stale or incorrect data is severe: financial transactions, distributed locks, leader election, configuration systems.
 
-**Real-world examples:** Google Spanner, Zookeeper, etcd.
+**Real-world systems:** Google Spanner, Zookeeper, etcd.
 
 ---
 
 ### 🟠 Sequential Consistency
 
-**Strong, but slightly relaxed.**
+**Strong, but slightly relaxed on timing.**
 
-All operations appear to execute in *some* sequential order that is consistent across all clients — but that order doesn't have to match real-world wall-clock time. All clients agree on the same order; it just might not be the "real" order events happened in.
+All operations appear to execute in *some* sequential order that is consistent across all clients — but that order doesn't have to match real wall-clock time. All clients agree on the same ordering of events; it just might not reflect exactly when those events happened.
 
 ```
-Client A:  write x=1, write x=2
-Client B:  reads may see x=1 then x=2 (correct order preserved)
-           but the exact timing of when B sees the update is not guaranteed
+Client A:  write x=1, then write x=2
+Client B:  will always see x=1 before x=2 (order preserved)
+           but might not see the update instantly
 ```
 
-**Analogy:** A bulletin board in a shared office. Everyone reads the same board, and posts stay in the order they were pinned — but there might be a delay before a new post appears on the board for everyone.
+> 📌 **Analogy:** A bulletin board in a shared office. Everyone reads the same board, and posts stay in the order they were pinned — but there might be a delay before a new post appears for everyone. No one sees posts out of order, but they might see them with a slight delay.
 
-**When to use it:** Collaborative tools, shared state that needs to be consistent across users but doesn't require microsecond precision.
+Sequential consistency is useful for collaborative tools and shared state that needs to be coherent across users but doesn't require microsecond precision.
 
 ---
 
@@ -124,24 +122,25 @@ Client B:  reads may see x=1 then x=2 (correct order preserved)
 
 **Preserves cause-and-effect. Lets unrelated things diverge.**
 
-If operation A causally affects operation B (e.g., a reply to a message), then all nodes must show A before B. Operations with no causal relationship can appear in any order.
+If operation A causally depends on operation B — a reply to a message, an edit to a document someone just shared — then all nodes must show A before B. Operations with no causal relationship can appear in any order across different nodes.
 
 ```
-User A posts: "Who wants pizza?"        ← causes →
+User A posts: "Who wants pizza?"         ← this causes →
 User B replies: "Me! Let's get pepperoni."
 
 Causal consistency guarantees: no one will ever see B's reply
 without first having seen A's question.
 
-But two unrelated posts from User C and User D can appear
-in any order on different nodes — that's fine.
+But two completely unrelated posts from User C and User D
+can appear in any order on different nodes — that's fine,
+because they don't depend on each other.
 ```
 
-**What it costs:** The system must track causal dependencies (typically via vector clocks or logical timestamps). More complexity than eventual consistency, but far cheaper than full linearizability.
+The system tracks causal dependencies — typically using **vector clocks** or **logical timestamps** — to know which operations are causally related. This is more complex than eventual consistency but far cheaper than linearizability, because it only requires coordination for causally related events, not for everything.
 
-**When to use it:** Social feeds, comment threads, collaborative editing, messaging systems — anywhere where logical order matters but global total order is overkill.
+Causal consistency is often the right model for social feeds, comment threads, messaging systems, and collaborative editing — anywhere where logical order matters but you don't need a total global order of all events.
 
-**Real-world examples:** MongoDB (with causal sessions), Cassandra (with lightweight transactions).
+**Real-world systems:** MongoDB (with causal sessions), some Cassandra configurations.
 
 ---
 
@@ -149,51 +148,51 @@ in any order on different nodes — that's fine.
 
 **The most common model in large-scale systems.**
 
-If no new writes are made, all replicas will *eventually* converge to the same value. There is no guarantee about *when* that convergence happens — only that it will.
+If no new writes are made, all replicas will *eventually* converge to the same value. There is no guarantee about *when* — only that convergence will happen.
 
 ```
 Client A writes x = 10 to Node 1
-Client B reads x from Node 2 immediately after → might see x = 7 (old value)
+Client B reads x from Node 2 immediately → might see x = 7 (stale)
 Client B reads x from Node 2 five seconds later → sees x = 10 (converged)
 ```
 
-**What it costs:** Readers may see stale data. Applications must be designed to handle this — either by tolerating it or by implementing read-your-own-writes guarantees at the application layer.
+The system doesn't coordinate on writes. Each node accepts writes locally and propagates them to other nodes in the background. This means writes are fast and the system stays available even when nodes can't reach each other.
 
-**What it buys:** Massive availability and low latency. The system can accept writes and serve reads even during network partitions. Each node can operate independently.
+The cost is that readers may see stale data. Applications using eventually consistent storage need to be designed around this — either by tolerating staleness (a like count that's a few seconds behind is fine) or by implementing compensating strategies at the application layer (such as read-your-own-writes, where a user always reads from the node they just wrote to).
 
-**When to use it:** Shopping carts, social media likes and follower counts, DNS, caching layers, leaderboards, any data where a few seconds of staleness is acceptable.
+> 💡 **Important nuance:** Eventual consistency is a guarantee about convergence, not permission for arbitrary behavior. Well-designed eventually consistent systems use explicit **conflict resolution strategies** — last-write-wins, CRDTs (Conflict-free Replicated Data Types), or application-level merging — to handle cases where two nodes accept conflicting writes while partitioned.
 
-**Real-world examples:** DynamoDB, Cassandra, CouchDB, most CDN caches.
+**When it makes sense:** Shopping carts, social media likes and follower counts, DNS propagation, CDN caches, leaderboards — anywhere that a few seconds of staleness has no meaningful consequence.
 
-> 💡 **Important nuance:** Eventual consistency is a *guarantee about convergence*, not a license for chaos. Well-designed eventually consistent systems use **conflict resolution strategies** (last-write-wins, CRDTs, application-level merging) to handle the cases where two nodes diverge.
+**Real-world systems:** DynamoDB (default), Cassandra, CouchDB, most CDN layers.
 
 ---
 
 ### ⚪ Weak Consistency
 
-**No guarantees. The system does its best.**
+**No guarantees.**
 
-After a write, there is no guarantee that subsequent reads will see it — not immediately, not eventually in any defined way. The system makes no promises.
+After a write, there is no promise that subsequent reads will ever see it in any defined timeframe. The system makes its best effort.
 
-**When to use it:** Real-time systems where speed is everything and occasional data loss is acceptable. Video calls (a dropped frame is better than a frozen call), live game state, real-time telemetry.
+This sounds alarming, but it's the right model for real-time systems where speed is everything and occasional data loss is genuinely acceptable. A dropped frame in a video call is far better than a frozen call. Real-time game state where a slightly stale position is fine. Live sensor telemetry where only the latest reading matters and old ones can be discarded.
 
 ---
 
 ### The Spectrum at a Glance
 
-| Model | Guarantee | Latency | Availability | Use Case |
-|-------|-----------|---------|--------------|----------|
-| **Linearizable** | Reads always see latest write | High | Lower | Finance, leader election |
-| **Sequential** | Global consistent order | Medium-High | Medium | Collaborative tools |
-| **Causal** | Cause before effect | Medium | High | Messaging, social feeds |
-| **Eventual** | Will converge, no timing guarantee | Low | Very High | Likes, caches, DNS |
-| **Weak** | No guarantees | Very Low | Very High | Video, gaming, telemetry |
+| Model | Core Guarantee | Latency | Availability | Natural Use Case |
+|-------|----------------|---------|--------------|-----------------|
+| **Linearizable** | Every read sees latest write | High | Lower | Finance, locks, leader election |
+| **Sequential** | Global consistent ordering | Medium-High | Medium | Collaborative tools |
+| **Causal** | Cause always precedes effect | Medium | High | Messaging, social feeds |
+| **Eventual** | Will converge, no timing promise | Low | Very High | Likes, caches, DNS |
+| **Weak** | Best effort only | Very Low | Very High | Video, gaming, telemetry |
 
 ---
 
 ## 4. The CAP Theorem Revisited
 
-You first saw CAP in the [Abstraction guide](abstraction.md). Now you have the vocabulary to understand it more precisely.
+You first encountered CAP in [Abstraction](abstraction.md). Now with the vocabulary of consistency models, you can understand it more precisely.
 
 ```
                     Consistency
@@ -201,27 +200,28 @@ You first saw CAP in the [Abstraction guide](abstraction.md). Now you have the v
                         /\
                        /  \
                       /    \
-                     /  ???  \
-                    /  (pick  \
-                   /    two)   \
-                  ──────────────
-         Availability          Partition
-                               Tolerance
+                     / pick \
+                    /  two   \
+                   ────────────
+          Availability        Partition
+                              Tolerance
 ```
 
-In a distributed system, network partitions **will** happen — it's not a matter of if, but when. This means Partition Tolerance isn't really optional. So the real choice in practice is:
+Network partitions will happen in any real distributed system — it's a matter of when, not if. So partition tolerance isn't a real choice; it's a requirement. The practical decision is:
 
-**CP systems** — choose Consistency over Availability during a partition. The system may refuse to serve requests rather than return stale data. Examples: Zookeeper, HBase, etcd.
+**CP systems** — during a partition, refuse to serve requests rather than return potentially stale data. The system is correct when it responds, but may be unavailable during failures. (Zookeeper, HBase, etcd)
 
-**AP systems** — choose Availability over Consistency during a partition. The system keeps responding, but may return stale or conflicting data. Examples: Cassandra, DynamoDB, CouchDB.
+**AP systems** — during a partition, keep serving requests even if some data might be stale. The system stays available, but consistency is weakened. (Cassandra, DynamoDB, CouchDB)
 
-> ⚠️ **Common misconception:** CAP doesn't mean you permanently sacrifice one property. It describes what happens *during a partition*. When the network is healthy, well-designed systems can provide both consistency and availability.
+> ⚠️ **Common misconception:** CAP doesn't mean you permanently sacrifice one property. It describes what your system does *during a partition*. When the network is healthy, a well-designed system can provide both availability and strong consistency. CAP is about the failure case.
 
 ---
 
 ## 5. PACELC: The More Complete Picture
 
-CAP only describes behavior during failures. But what about when the system is healthy? That's where **PACELC** comes in — it's an extension of CAP that captures the everyday tradeoff.
+CAP only tells you about behavior during failures. But what about when everything is working normally? That's the gap PACELC fills.
+
+**PACELC** is an extension proposed by Daniel Abadi in 2012:
 
 ```
 if Partition:
@@ -230,92 +230,79 @@ else (normal operation):
     choose between Latency (L) and Consistency (C)
 ```
 
-Even when there's no partition, a strongly consistent system must coordinate across replicas — which adds latency. A latency-optimized system skips that coordination — which relaxes consistency.
+The insight is that even when there's no partition, a strongly consistent system must still coordinate across replicas on every operation — which adds latency. A system that skips that coordination is faster but relaxes its consistency guarantees. This tradeoff exists all the time, not just during failures.
 
-| System | Partition behavior | Normal behavior | Classification |
-|--------|--------------------|-----------------|----------------|
+| System | During partition | During normal operation | Classification |
+|--------|-----------------|------------------------|----------------|
 | DynamoDB | Availability | Latency | PA/EL |
 | Cassandra | Availability | Latency | PA/EL |
 | BigTable / HBase | Consistency | Consistency | PC/EC |
 | Spanner | Consistency | Consistency | PC/EC |
 | MongoDB | Availability | Consistency | PA/EC |
 
-> 💡 **Interview move:** If an interviewer asks about your database choice and you mention PACELC behavior (not just CAP), you immediately signal senior-level thinking. Most candidates stop at CAP.
+PACELC is the more honest model for reasoning about real systems, because partitions are rare but the latency/consistency tradeoff is present on every single request.
 
 ---
 
 ## 6. Consistency in Practice: Real Systems
 
 ### DynamoDB — Tunable Consistency
-DynamoDB lets you choose per-read: **eventually consistent reads** (faster, cheaper) or **strongly consistent reads** (reads always reflect the latest write, costs 2× the read capacity). This is called **tunable consistency** and is a pattern worth knowing.
+DynamoDB gives you a choice per read: **eventually consistent** (fast, cheap, may be stale by milliseconds) or **strongly consistent** (always reflects the latest write, costs twice the read capacity units). This is called **tunable consistency** — the application decides the right level per operation based on what it actually needs.
 
 ### Cassandra — Quorum-Based Consistency
-Cassandra uses a concept called **quorum**: a read or write is considered successful when a majority of replica nodes respond. If you have 3 replicas:
-- Write quorum: 2 of 3 nodes must acknowledge the write
-- Read quorum: 2 of 3 nodes must respond to the read
-- If both use quorum, you're guaranteed to see at least one node that has the latest write
+Cassandra uses a **quorum** model. If you have 3 replicas, a quorum is 2. A write is successful when 2 of 3 nodes acknowledge it. A read is answered when 2 of 3 nodes respond.
+
+Why does this matter? Because if you use quorum for both reads and writes, there is guaranteed overlap:
 
 ```
 3 replicas, quorum = 2
 
-Write acknowledged by 2 nodes ──────► at least 1 overlaps with
-Read answered by 2 nodes       ──────► any quorum read
-
-∴ At least one read node always has the latest value. ✓
+Write acknowledged by 2 nodes ──────►
+Read answered by 2 nodes       ──────►
+                                        At least 1 node is in both groups.
+                                        That node has the latest write.
+                                        ∴ Reads always see the latest write. ✓
 ```
 
-This is how Cassandra can offer tunable consistency — adjust quorum size, adjust your consistency level.
+If you relax quorum on either side (write to 1, read from 1), you get better performance but weaker consistency. Cassandra lets you tune this per operation, making it a highly flexible system at the cost of more careful reasoning required from the developer.
 
 ### Google Spanner — Global Linearizability
-Spanner achieves global linearizability across data centers using **TrueTime** — GPS and atomic clocks that bound clock uncertainty. When Spanner commits a transaction, it waits out the uncertainty window to ensure the timestamp is globally unique. This is one of the most impressive engineering feats in distributed systems.
+Spanner achieves global linearizability across data centers using **TrueTime** — a system of GPS receivers and atomic clocks that bounds clock uncertainty across all Spanner nodes to within a few milliseconds. When Spanner commits a transaction, it waits out the uncertainty window before making the write visible, guaranteeing that the commit timestamp is globally unique and ordered.
+
+This is one of the most impressive engineering feats in distributed systems: linearizability at global scale, without sacrificing availability, by using physical time as a coordination mechanism.
 
 ---
 
 ## 7. How to Choose a Consistency Model
 
-Use this decision framework when a component in your system needs to store or replicate data:
+The right question isn't "which consistency model is best?" — it's "what is the cost of returning stale or incorrect data in this specific context?"
 
 ```
-Does incorrect/stale data cause financial loss, security issues,
-or data corruption?
+What is the consequence if a read returns stale or incorrect data?
         │
-        ├── YES → Linearizability or strong consistency
-        │         (pay the latency cost, it's worth it)
+        ├── Financial loss, security issue, data corruption
+        │        → Linearizability
+        │          (pay the latency cost — it's worth it here)
         │
-        └── NO → Does the logical ORDER of events matter to users?
-                  (reply must appear after the post, etc.)
-                        │
-                        ├── YES → Causal consistency
-                        │
-                        └── NO → Is a few seconds of staleness acceptable?
-                                        │
-                                        ├── YES → Eventual consistency
-                                        │         (maximize availability)
-                                        │
-                                        └── NO → Sequential consistency
+        ├── Logical incoherence (reply before question, edit before share)
+        │        → Causal consistency
+        │          (preserve cause-and-effect, let unrelated things diverge)
+        │
+        ├── Mildly stale data — user notices within seconds
+        │        → Sequential or strong eventual consistency
+        │
+        └── Stale for a few seconds is completely fine
+                 → Eventual consistency
+                   (maximize availability and throughput)
 ```
+
+The decision isn't about the technology — it's about the *semantic meaning* of the data and the *consequences of getting it wrong*.
 
 ---
 
-## 8. Applying This in an Interview
+## 8. Worked Example: Social Media Feed vs. Bank Transfer
 
-When you introduce any data store or replication strategy, the interviewer may ask: *"What consistency model does that give you?"*
-
-Here's how to answer confidently:
-
-- **Name the model** — "This gives us eventual consistency."
-- **Explain what that means** — "Reads may see stale data for a short window after a write."
-- **Justify why that's acceptable** — "For a social media like count, a few seconds of staleness is completely fine — users won't notice."
-- **Name the tradeoff you're accepting** — "We're trading read freshness for availability and low latency."
-- **Know when you'd escalate** — "If this were a payment confirmation, I'd switch to a strongly consistent read or use a transaction."
-
-This four-part answer — model, meaning, justification, tradeoff — is the pattern for any consistency question in an interview.
-
----
-
-## 9. Worked Example: Social Media Feed vs. Bank Transfer
-
-Two systems. Very different consistency needs. Let's design them side by side.
+The same distributed database infrastructure. Completely different consistency requirements. Let's look at why.
 
 ### Instagram Like Count
 
@@ -331,13 +318,13 @@ Write to DynamoDB (eventually consistent)
 
 User B reads like count → might see 1,041 instead of 1,042
 
-Is this a problem? No. The user will never notice 200ms of staleness
-on a like counter. Eventual consistency is the right call.
+Is this a problem?
+No. The user will never notice 200ms of staleness on a like counter.
+The count will converge. No one is harmed by seeing 1,041 vs 1,042.
 
-✓ High availability, low latency, massive scale
+Eventual consistency is correct here.
+✓ High availability, low latency, scales to billions of writes/day.
 ```
-
----
 
 ### Bank Transfer: Alice sends $500 to Bob
 
@@ -348,44 +335,44 @@ Bob's balance:   $200
 Step 1: Debit Alice  → balance = $500
 Step 2: Credit Bob   → balance = $700
 
-These two operations MUST be atomic and linearizable.
+These two operations must be atomic and linearizable.
 
-If a read happens between Step 1 and Step 2 on a stale replica:
-→ Alice's money has left, but Bob hasn't received it yet
-→ The $500 is briefly "missing" from the system
-→ This is catastrophic
+What happens with eventual consistency?
+→ A read between Step 1 and Step 2 shows Alice's money has left
+  but Bob hasn't received it yet.
+→ $500 is briefly missing from the system.
+→ A retry of Step 1 could debit Alice twice.
+→ A network partition could leave the system permanently inconsistent.
 
-✗ Eventual consistency is WRONG here.
+Eventual consistency is wrong here. Catastrophically so.
 ✓ Linearizable transactions with ACID guarantees are required.
 ```
 
-Same underlying technology (distributed database), completely different consistency requirements — chosen based on the consequence of seeing stale data.
+Same infrastructure, different dials. The difference isn't technical sophistication — it's asking what actually happens when data is wrong and designing for that answer.
 
 ---
 
-## 10. Self-Check
+## 9. Self-Check
 
-Answer these without looking:
-
-1. Why does replication create a consistency problem?
-2. What is linearizability, and what does it cost?
-3. What is the difference between causal consistency and eventual consistency?
+1. Why does replication create a consistency problem? What specifically is happening during the window it creates?
+2. What is linearizability, and what does it cost to achieve?
+3. What is the difference between causal consistency and eventual consistency? When would you choose one over the other?
 4. What does PACELC add to CAP that CAP alone doesn't capture?
-5. A user posts a comment and immediately refreshes the page — they don't see their own comment. What consistency model is the system using, and how would you fix it?
-6. You're designing a ride-sharing app. The driver's GPS location updates every second. What consistency model would you choose for storing location data, and why?
-7. What is quorum, and how does it let Cassandra offer tunable consistency?
+5. A user posts a comment and immediately refreshes — they don't see their own comment. What consistency model is the system using? What would you change to fix it?
+6. You're designing a ride-sharing app. The driver's GPS location updates every second and is displayed to nearby riders. What consistency model would you choose, and why?
+7. What is quorum in Cassandra, and how does it provide a consistency guarantee?
 
 ---
 
-## 11. References
+## 10. References
 
 | Resource | Why it's worth it |
 |----------|-------------------|
-| 📘 [Designing Data-Intensive Applications — Ch. 5 & 9 (Kleppmann)](https://dataintensive.net) | The definitive deep dive on replication, consistency, and the linearizability cost |
-| 📝 [Consistency Models — Jepsen (Kyle Kingsbury)](https://jepsen.io/consistency) | The most comprehensive visual map of consistency models on the internet |
-| 🔬 [Spanner: Google's Globally Distributed Database](https://research.google/pubs/pub39966/) | The original paper — see how TrueTime achieves global linearizability |
-| 📊 [PACELC — Daniel Abadi (2012)](https://dl.acm.org/doi/10.1145/2462300) | The original paper extending CAP with the latency tradeoff |
-| 📬 [ByteByteGo — Consistency Models Explained](https://bytebytego.com) | Visual walkthrough of the spectrum with real-world examples |
+| 📘 [Designing Data-Intensive Applications — Ch. 5 & 9 (Kleppmann)](https://dataintensive.net) | The definitive treatment of replication, consistency models, and linearizability — read these chapters |
+| 📝 [Consistency Models — Jepsen (Kyle Kingsbury)](https://jepsen.io/consistency) | The most comprehensive visual map of consistency models on the internet, with formal definitions |
+| 🔬 [Spanner: Google's Globally Distributed Database](https://research.google/pubs/pub39966/) | The original paper — how TrueTime achieves global linearizability |
+| 📊 [PACELC — Daniel Abadi (2012)](https://dl.acm.org/doi/10.1145/2462300) | The paper that extends CAP with the latency tradeoff |
+| 📬 [ByteByteGo — Consistency Models](https://bytebytego.com) | Visual walkthrough of the spectrum with real-world examples |
 
 ---
 

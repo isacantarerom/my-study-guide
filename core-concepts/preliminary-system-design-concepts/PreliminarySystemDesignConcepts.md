@@ -7,3 +7,4 @@ Grasp the fundamentals of abstractions in distributed systems, focusing on netwo
 |------|------|
 Abstraction | [Read Guide](abstraction.md)
 Network Abstraction: Remote Procedure Calls | [Read Guide](networkAbstraction.md)
+Spectrum of Consistency Models | [Read Guide](consistencyModels.md)

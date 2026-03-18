@@ -14,30 +14,30 @@
 4. [The Illusion and Its Limits](#4-the-illusion-and-its-limits)
 5. [RPC vs REST vs Message Queues](#5-rpc-vs-rest-vs-message-queues)
 6. [gRPC: The Modern Standard](#6-grpc-the-modern-standard)
-7. [Failure Modes You Must Know](#7-failure-modes-you-must-know)
+7. [Failure Modes You Must Understand](#7-failure-modes-you-must-understand)
 8. [Idempotency: The Key to Safe Retries](#8-idempotency-the-key-to-safe-retries)
-9. [Applying This in an Interview](#9-applying-this-in-an-interview)
-10. [Worked Example: Ride-Sharing Dispatch](#10-worked-example-ride-sharing-dispatch)
-11. [Self-Check](#11-self-check)
-12. [References](#12-references)
+9. [Worked Example: Ride-Sharing Dispatch](#9-worked-example-ride-sharing-dispatch)
+10. [Self-Check](#10-self-check)
+11. [References](#11-references)
 
 ---
 
 ## 1. Why Network Abstraction Exists
 
-In [Abstraction](abstraction.md), we established that abstraction hides complexity behind a simpler interface. Network abstraction takes that idea and applies it to one of the hardest problems in distributed systems: **making two machines talk to each other as if they were one.**
+In [Abstraction](abstraction.md), we established that abstraction hides complexity so the layer above can focus on its own problem. Network abstraction applies that idea to one of the hardest problems in distributed systems: **making two machines talk to each other without the developer having to think about what that actually involves.**
 
-Without network abstraction, every service-to-service call would require engineers to manually handle:
+What does it actually involve? Every time Service A needs to call Service B over a network, someone has to handle:
 
-- Opening and closing TCP sockets
-- Serializing data into bytes and deserializing responses
-- Setting timeouts and retrying on failure
-- Handling partial failures (did the other side receive it or not?)
-- Versioning the communication protocol
+- Opening and managing a TCP connection
+- Serializing the function arguments into bytes
+- Sending those bytes over the wire
+- Waiting for a response (or handling the case where one never comes)
+- Deserializing the response back into usable data
+- Handling partial failures — did the other side receive the request? Did it process it? Did only the response get lost?
 
-That's thousands of lines of boilerplate for every pair of services that need to communicate. In a system with 50 microservices, that's untenable.
+In a system with 5 microservices, maybe you write this boilerplate manually. In a system with 50, it becomes thousands of lines of repetitive, error-prone infrastructure code in every service, maintained by every team, diverging over time. That's unsustainable.
 
-**Network abstraction — and RPC specifically — hides all of that.** The engineer writes a function call. The framework handles the rest.
+**Network abstraction — and RPC specifically — exists to absorb all of that so developers can write a function call and trust the framework to handle the rest.**
 
 ---
 
@@ -45,7 +45,7 @@ That's thousands of lines of boilerplate for every pair of services that need to
 
 **RPC stands for Remote Procedure Call.**
 
-It's a communication model that lets a program call a function (procedure) on a *different machine* using the same syntax as a local function call. The network communication is entirely hidden from the developer.
+It's a communication model that lets a program call a function on a *different machine* using the same syntax as a local function call. The network communication is entirely hidden.
 
 ```
 // This looks like a local call...
@@ -55,15 +55,15 @@ UserProfile profile = userService.getProfile(userId);
 // possibly in a different data center, on a different continent.
 ```
 
-The calling service is called the **client**. The service being called is the **server**. The piece of code that makes this magic happen — that intercepts the function call, serializes it, sends it over the network, and returns the result — is called a **stub** (on the client side) and a **skeleton** (on the server side).
+The calling side is the **client**. The side being called is the **server**. The piece of code that intercepts the function call, serializes it, sends it, and returns the result is called a **stub** (on the client side) and a **skeleton** (on the server side). These are generated automatically by the RPC framework — you write a service definition, the framework generates the plumbing.
 
-> 🏦 **Analogy:** Think of an ATM. You press "Withdraw $100" and money comes out. You have no idea whether that request was processed by a server in the same building or routed to a data center across the country. The ATM interface *abstracts* the banking network entirely.
+> 🏦 **Analogy:** Think of an ATM. You press "Withdraw $100" and money comes out. You have no idea whether that request was processed locally or routed to a data center across the country. The ATM interface abstracts the entire banking network. The RPC stub is the ATM — it takes your input, handles the complexity underneath, and hands you back a result.
 
 ---
 
 ## 3. How an RPC Call Actually Works
 
-Under the hood, every RPC call goes through this lifecycle. Understanding this is what lets you reason about failure modes.
+It's worth understanding the actual lifecycle, because this is where failure modes come from. Every RPC call goes through these steps:
 
 ```
 CLIENT SIDE                              SERVER SIDE
@@ -78,62 +78,60 @@ CLIENT SIDE                              SERVER SIDE
         │
         ▼
 3. Network Transport
-   Opens TCP connection (or reuses one)     ──────────────────►
-   Sends bytes over the wire                                  │
-                                                              ▼
-                                            4. Server Stub receives bytes
-                                               Deserializes into arguments
-                                                              │
-                                                              ▼
-                                            5. Server executes the actual function
-                                               getProfile(userId) runs locally
-                                                              │
-                                                              ▼
-                                            6. Server Stub serializes the result
-   ◄──────────────────                        Sends response bytes back
+   Opens TCP connection (or reuses one)  ───────────────────►
+   Sends bytes over the wire                                 │
+                                                             ▼
+                                           4. Server Stub receives bytes
+                                              Deserializes into arguments
+                                                             │
+                                                             ▼
+                                           5. Server executes the function
+                                              getProfile(userId) runs locally
+                                                             │
+                                                             ▼
+                                           6. Server Stub serializes the result
+   ◄───────────────────                       Sends response bytes back
         │
         ▼
 7. Client Stub deserializes the response
-   Returns result to the developer as if
-   it were a normal return value
+   Returns result as if it were a
+   normal return value
         │
         ▼
 8. Developer receives:
    UserProfile{ name: "Isa", ... }
 ```
 
-Steps 2–7 are entirely invisible to the developer. That invisibility **is** the abstraction.
+Steps 2–7 are entirely invisible to the developer writing the code. That invisibility is the abstraction working as intended. The problem — as we'll see — is that the things happening in those invisible steps can fail in ways that local function calls never do.
 
 ---
 
 ## 4. The Illusion and Its Limits
 
-RPC creates a powerful illusion: that remote calls are the same as local calls. But this illusion has cracks, and knowing where it cracks is the difference between a junior and senior answer in interviews.
+RPC creates a useful illusion: remote calls feel like local calls. But this illusion has real limits, and understanding those limits is what separates engineers who build reliable distributed systems from those who don't.
 
-Peter Deutsch's **"Fallacies of Distributed Computing"** (1994) lists the assumptions developers mistakenly make when building distributed systems. Most of them are broken by the RPC abstraction leaking:
+Peter Deutsch documented the classic version of this in 1994 as the **Fallacies of Distributed Computing** — assumptions developers tend to make about networks that simply aren't true:
 
 | Fallacy | Reality |
 |---------|---------|
 | The network is reliable | Packets drop. Connections reset. Routers fail. |
-| Latency is zero | A local call takes nanoseconds. A network call takes milliseconds — 1,000,000× slower. |
-| Bandwidth is infinite | Serializing large objects and sending them over a network has real cost. |
-| The network is secure | Data in transit can be intercepted. TLS isn't optional. |
+| Latency is zero | A local call takes nanoseconds. A network call takes milliseconds — up to 1,000,000× slower. |
+| Bandwidth is infinite | Serializing large objects has real cost. Large payloads slow everything down. |
+| The network is secure | Data in transit can be intercepted. TLS isn't optional in production. |
 | Topology doesn't change | Servers go down. IPs change. DNS propagates slowly. |
-| There is one administrator | In a microservices world, every team owns their service. No one owns the whole network. |
+| There is one administrator | Every team owns their service. No one owns the whole network. |
 
-> ⚠️ **The core danger of RPC:** It makes remote calls *look* like local calls, which tempts developers to treat them the same. Local calls never fail mid-execution. Remote calls absolutely do — and in ambiguous ways.
+The core danger of RPC is precisely that it makes remote calls *look* like local calls, which tempts developers into treating them the same. Local calls never fail mid-execution. They don't have timeouts. They can't partially succeed. Remote calls absolutely can — and do — and they fail in ambiguous ways that are genuinely hard to reason about.
+
+Understanding this isn't pessimism. It's the foundation for designing systems that handle failures gracefully instead of being blindsided by them.
 
 ---
 
 ## 5. RPC vs REST vs Message Queues
 
-These are the three dominant patterns for service-to-service communication. You need to know when to use each one.
+These are the three dominant patterns for service-to-service communication. They're not interchangeable — each exists because it solves a different problem well.
 
 ```
-                    ┌──────────────────────────────────────────────┐
-                    │         Communication Patterns               │
-                    └──────────────────────────────────────────────┘
-
          RPC / gRPC              REST / HTTP             Message Queue
          ──────────              ──────────────          ─────────────
          Synchronous             Synchronous             Asynchronous
@@ -143,15 +141,13 @@ These are the three dominant patterns for service-to-service communication. You 
          "Call this function"    "Act on this resource"  "This event happened"
 ```
 
-### When to reach for each one
+**RPC / gRPC** is the right tool when two internal services need to communicate frequently, performance matters, and you control both ends of the connection. The tight coupling is acceptable because you own both sides. The speed benefit is real.
 
-**RPC / gRPC** — when two internal services need to communicate frequently, performance matters, and you control both ends of the connection. Good for: service meshes, internal microservices, streaming data.
+**REST** is the right tool when you're building a public-facing API, need broad compatibility across any client or language, or want requests that are human-readable, cacheable, and debuggable. The looser coupling is worth it when you don't control who's calling you.
 
-**REST** — when you're building a public-facing API, need broad compatibility (any client, any language), or want human-readable and cache-friendly requests. Good for: public APIs, web/mobile backends, third-party integrations.
+**Message Queue** is the right tool when the producer and consumer don't need to be alive simultaneously, or when you need one event to fan out to many consumers without the producer knowing who they are. The asynchrony is the feature, not a limitation.
 
-**Message Queue** — when the producer and consumer don't need to be alive at the same time, or when you need to fan out one event to many consumers. Good for: async jobs, notifications, event sourcing, decoupling services that scale independently.
-
-> 💡 **Interview tip:** If an interviewer asks "how do your services communicate?" — don't just say "REST." Ask: Is this synchronous or async? Internal or external? Latency-sensitive? Your answer should follow from the constraints.
+Choosing between them is about asking: does the caller need an immediate answer? Do I own both sides of this communication? Can this work happen later?
 
 ---
 
@@ -159,14 +155,14 @@ These are the three dominant patterns for service-to-service communication. You 
 
 **gRPC** is Google's open-source RPC framework and the de facto standard for internal microservice communication in high-scale systems.
 
-It's built on two technologies:
+It's built on two technologies that matter:
 
-- **HTTP/2** — allows multiplexing multiple calls over a single TCP connection, bidirectional streaming, and header compression
-- **Protocol Buffers (Protobuf)** — a binary serialization format that is smaller and faster to parse than JSON
+- **HTTP/2** — allows multiplexing multiple calls over a single TCP connection, bidirectional streaming, and header compression. This means many simultaneous RPC calls don't each need their own connection.
+- **Protocol Buffers (Protobuf)** — a binary serialization format that is significantly smaller and faster to parse than JSON. You define your data schema in a `.proto` file; Protobuf handles the rest.
 
-### What a gRPC definition looks like
+### What a gRPC service definition looks like
 
-You define your service in a `.proto` file — this is the **contract**, the abstraction boundary:
+You define your service contract in a `.proto` file. This file is the source of truth — the RPC framework generates both client and server code from it:
 
 ```protobuf
 // user_service.proto
@@ -186,47 +182,57 @@ message UserProfile {
 }
 ```
 
-gRPC generates client and server code in your language of choice from this file. The developer never touches serialization.
+The developer never writes serialization code. The `.proto` file is also the API contract between teams — change it carefully, because both sides depend on it.
 
 ### gRPC streaming modes
 
-One major advantage gRPC has over REST is native support for streaming:
+One meaningful advantage gRPC has over REST is native support for streaming:
 
 | Mode | Description | Use Case |
 |------|-------------|----------|
-| Unary | One request → one response | Standard function call (like REST) |
+| Unary | One request → one response | Standard function call |
 | Server streaming | One request → stream of responses | Live feed, log tailing |
-| Client streaming | Stream of requests → one response | File upload, sensor data ingestion |
+| Client streaming | Stream of requests → one response | File upload, sensor data |
 | Bidirectional streaming | Stream both ways simultaneously | Chat, real-time collaboration |
 
 ---
 
-## 7. Failure Modes You Must Know
+## 7. Failure Modes You Must Understand
 
-This is where network abstraction gets dangerous. When an RPC call fails, it fails in ambiguous ways that local calls never do. There are three possible outcomes of any RPC call:
+This is where network abstraction gets genuinely hard. When an RPC call fails, it fails in ambiguous ways that local calls never do.
+
+There are three possible outcomes of any RPC call:
 
 ```
 RPC Call Sent
       │
-      ├──► ✅ Success         — Server received, processed, responded. Easy.
+      ├──► ✅ Success
+      │       Server received, processed, responded. Easy.
       │
-      ├──► ❌ Fail before     — Network failed before server received anything.
-      │       execution          Safe to retry. Server never saw the request.
+      ├──► ❌ Fail before execution
+      │       Network failed before server received anything.
+      │       Safe to retry — server never saw the request.
       │
-      └──► ❓ Fail during /   — The scary one. Did the server receive it?
-              after execution    Did it process it? Did only the response get lost?
-                                 You don't know. Retrying might duplicate the action.
+      └──► ❓ Fail during or after execution
+              The dangerous case.
+              Did the server receive it?
+              Did it process it?
+              Did only the response get lost?
+              You don't know. Retrying might duplicate the action.
 ```
 
-The third case — **ambiguous failure** — is why distributed systems are hard. It's also why idempotency matters so much.
+The third case — **ambiguous failure** — is the hard one. Your payment was charged and the response was lost. Do you retry and charge again? Do you give up and tell the user it failed when it didn't? Neither is good without a deliberate strategy for handling this.
 
-### Key failure handling strategies
+This is why the patterns below exist.
 
-**Timeouts** — Never make an RPC call without a timeout. Without one, a hung server causes your client to wait forever, holding resources and eventually cascading into a full outage.
+### Timeouts
+Never make an RPC call without a timeout. A hung server without a timeout causes the caller to wait indefinitely, holding threads and connections until the entire caller is exhausted and fails too. This is how one slow service cascades into a full system outage. Set timeouts everywhere.
 
-**Retries with exponential backoff** — On failure, wait before retrying. Double the wait each time (e.g., 1s → 2s → 4s → 8s). Add jitter (random variation) so thousands of clients don't all retry at the exact same moment.
+### Retries with Exponential Backoff
+On failure, wait before retrying, and increase the wait each time (1s → 2s → 4s → 8s). Add random jitter so thousands of clients don't all retry at the same millisecond and overwhelm an already struggling service.
 
-**Circuit Breaker** — If a service is failing consistently, stop sending it requests for a period of time. This prevents a struggling service from being hammered into complete failure. After a cooldown, allow a small number of probe requests through to check recovery.
+### Circuit Breaker
+If a downstream service is consistently failing, stop sending it requests entirely for a cooldown period rather than hammering it into complete failure. The circuit breaker pattern gives the struggling service time to recover.
 
 ```
          ┌─────────┐   failures > threshold   ┌──────────┐
@@ -241,25 +247,29 @@ The third case — **ambiguous failure** — is why distributed systems are hard
                    └────────────┘
 ```
 
+**Closed** — normal operation, traffic flows freely.
+**Open** — too many failures detected, calls are blocked immediately without trying.
+**Half-Open** — cooldown expired, a small number of probe calls go through to test if the service recovered.
+
 ---
 
 ## 8. Idempotency: The Key to Safe Retries
 
 **An operation is idempotent if calling it multiple times produces the same result as calling it once.**
 
-This is the solution to the ambiguous failure problem. If your RPC operations are idempotent, retrying after a failure is always safe.
+This is the solution to the ambiguous failure problem. If your operations are idempotent, retrying after any failure is always safe — even if you don't know whether the first attempt succeeded.
 
 | Operation | Idempotent? | Why |
 |-----------|-------------|-----|
 | `GET /users/123` | ✅ Yes | Reading doesn't change state |
 | `DELETE /users/123` | ✅ Yes | Deleting something already deleted is a no-op |
-| `PUT /users/123 {name: "Isa"}` | ✅ Yes | Setting a value to the same value changes nothing |
+| `PUT /users/123 {name: "Isa"}` | ✅ Yes | Setting a value to the same value is a no-op |
 | `POST /orders` | ❌ No | Calling twice creates two orders |
 | `POST /payment/charge` | ❌ No | Charging twice bills the customer twice |
 
 ### Making non-idempotent operations safe: Idempotency Keys
 
-For operations that are inherently non-idempotent (like payments), you can add an **idempotency key** — a unique ID the client generates and sends with the request. The server stores it and, if it sees the same key again, returns the original response without re-executing.
+For operations that are inherently non-idempotent (like payments), you can add an **idempotency key** — a unique ID the client generates and sends with the request. The server stores it, and if it sees the same key again, returns the original response without re-executing.
 
 ```
 Client sends:
@@ -267,88 +277,79 @@ Client sends:
   Idempotency-Key: "order-98765-attempt-1"
   Body: { amount: 50.00, user: "isa" }
 
-Server checks: have I seen "order-98765-attempt-1" before?
-  → No: process payment, store result under that key
-  → Yes: return stored result, don't charge again
+Server logic:
+  Have I seen "order-98765-attempt-1" before?
+  → No:  process payment, store result under that key, return result
+  → Yes: return the stored result, do NOT charge again
 ```
 
-Stripe uses exactly this pattern in their API. You'll see it come up whenever payments or financial transactions appear in an interview.
+This pattern completely resolves the ambiguous failure problem for payments. The client can retry as many times as it wants. The server guarantees the operation only ever executes once. Stripe uses exactly this pattern in their production API.
 
 ---
 
-## 9. Applying This in an Interview
+## 9. Worked Example: Ride-Sharing Dispatch
 
-When communication between services comes up in your design, walk through this mental checklist:
-
-- [ ] **Sync or async?** Does the caller need to wait for a response, or can it fire and forget?
-- [ ] **Internal or external?** Internal → gRPC. External/public → REST.
-- [ ] **What's the failure model?** Name it: timeouts, retries, circuit breakers.
-- [ ] **Are mutations idempotent?** If not, how are you making them safe to retry?
-- [ ] **What's the contract?** Define the interface: what goes in, what comes out, what errors are possible.
-
-Even if you don't go deep into every point, *raising* these questions signals that you think in systems, not just in happy paths.
-
----
-
-## 10. Worked Example: Ride-Sharing Dispatch
-
-Let's ground all of this in a real system. You're designing the dispatch component of a ride-sharing app (think Uber/Lyft). A rider requests a ride. The system needs to find and assign a driver.
+Let's tie this all together in a real system. A rider requests a ride. The system needs to find and assign a driver.
 
 ```
 Rider App
     │
-    │  POST /rides  (REST — public-facing API)
+    │  POST /rides  (REST — public-facing, broad compatibility)
     ▼
 API Gateway
     │
-    │  RideService.CreateRide(rideRequest)  ← gRPC, internal
+    │  RideService.CreateRide(rideRequest)
+    │  ← gRPC: internal, performance-sensitive, we own both sides
     ▼
 Ride Service
-    ├──► DriverService.FindNearbyDrivers(location)  ← gRPC, sync, needs fast response
-    │         Returns: [driver_1, driver_2, driver_3]
     │
-    ├──► DriverService.AssignDriver(rideId, driverId)  ← gRPC, must be idempotent
-    │         Idempotency key: rideId
-    │         (retry-safe: assigning same driver twice is a no-op)
+    ├──► DriverService.FindNearbyDrivers(location)
+    │    ← gRPC, synchronous: caller needs the answer right now
+    │      Returns: [driver_1, driver_2, driver_3]
     │
-    └──► Message Queue (Kafka)  ← async, fire and forget
-              Event: "ride_created"
-              Consumers:
-                - NotificationService  (push to rider + driver)
-                - BillingService       (pre-authorize payment)
-                - AnalyticsService     (log the event)
+    ├──► DriverService.AssignDriver(rideId, driverId)
+    │    ← gRPC with idempotency key = rideId
+    │      Safe to retry: assigning the same driver twice is a no-op
+    │
+    └──► Message Queue (Kafka): "ride_created" event
+         ← Async: Ride Service doesn't need to wait for these
+           Consumers:
+             - NotificationService  (push alerts to rider + driver)
+             - BillingService       (pre-authorize payment)
+             - AnalyticsService     (log the event for data pipeline)
 ```
 
-Notice the pattern:
-- **REST** at the public boundary (flexible, cacheable, universally compatible)
-- **gRPC** for internal calls where latency and type safety matter
-- **Message Queue** for fan-out events where multiple consumers care but Ride Service doesn't need to wait on them
-- **Idempotency key** on the assignment to prevent double-assignment on retry
+Notice the reasoning behind each choice:
+
+- **REST** at the public boundary — any mobile client, any language, cacheable, debuggable
+- **gRPC** for internal calls — performance matters, type safety matters, we control both services
+- **Idempotency key** on assignment — network between services can fail; we need retries to be safe
+- **Message queue** for fan-out — three downstream services care about this event, but Ride Service shouldn't be coupled to any of them or blocked waiting for them
+
+Every choice follows from a concrete constraint, not a preference.
 
 ---
 
-## 11. Self-Check
+## 10. Self-Check
 
-Answer these without looking:
-
-1. What problem does RPC solve, and what complexity does it hide?
+1. What problem does RPC solve, and what complexity does it actually hide?
 2. Walk through the lifecycle of an RPC call from function invocation to response.
-3. What are the three possible outcomes of any RPC call? Which one is dangerous, and why?
-4. What is idempotency? Give one example of an idempotent and one non-idempotent operation.
+3. What are the three possible outcomes of any RPC call? Which is dangerous, and why?
+4. What is idempotency? Give one idempotent and one non-idempotent example, and explain *why* each is or isn't.
 5. When would you choose gRPC over REST? REST over gRPC? A message queue over either?
-6. What is a circuit breaker, and when does it activate?
+6. What are the three states of a circuit breaker, and what triggers each transition?
 
 ---
 
-## 12. References
+## 11. References
 
 | Resource | Why it's worth it |
 |----------|-------------------|
-| 📘 [Designing Data-Intensive Applications — Ch. 4 (Encoding & Evolution)](https://dataintensive.net) | Deep dive on serialization, Protobuf, and RPC evolution |
-| 📝 [Fallacies of Distributed Computing — Peter Deutsch](https://en.wikipedia.org/wiki/Fallacies_of_distributed_computing) | The eight assumptions that break RPC's illusion |
+| 📘 [Designing Data-Intensive Applications — Ch. 4](https://dataintensive.net) | Deep dive on serialization, Protobuf, and RPC evolution across versions |
+| 📝 [Fallacies of Distributed Computing — Peter Deutsch](https://en.wikipedia.org/wiki/Fallacies_of_distributed_computing) | The eight assumptions that break RPC's illusion — short and essential |
 | 🔧 [gRPC Official Documentation](https://grpc.io/docs/) | Concepts, quickstarts, and language guides |
+| 💳 [Stripe Idempotency Keys](https://stripe.com/docs/api/idempotent_requests) | Real-world idempotency in a production payment API — worth reading |
 | 📬 [ByteByteGo — How do microservices communicate?](https://bytebytego.com) | Visual breakdown of RPC, REST, and messaging patterns |
-| 💳 [Stripe Idempotency Keys](https://stripe.com/docs/api/idempotent_requests) | Real-world idempotency in a production payment API |
 
 ---
 
