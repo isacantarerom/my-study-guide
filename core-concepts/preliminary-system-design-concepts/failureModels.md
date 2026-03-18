@@ -409,7 +409,7 @@ In every scenario, the design holds. Failures are expected, and the protocol is 
 
 ---
 
-*⬅️ Previous: [Spectrum of Consistency Models](consistencyModels.md) &nbsp;|&nbsp; ➡️ Next: Non-Functional System Characteristics*
+*⬅️ Previous: [Spectrum of Consistency Models](consistencyModels.md) &nbsp;|&nbsp; ➡️ Next: [Non-Functional System Characteristics](../non-functional-system-characteristics/NonFunctionalSystemCharacteristics.md)*
 
 ---
 

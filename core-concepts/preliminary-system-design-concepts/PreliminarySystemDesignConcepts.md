@@ -50,5 +50,7 @@ Abstraction
 ```
 
 ---
+*⬅️ Back to [README](../../README.md) &nbsp;|&nbsp; ➡️ First Guide: [Abstraction](abstraction.md)* 
 
-*⬅️ Back to [README](../../README.md) &nbsp;|&nbsp; ➡️ Next Section: Non-Functional System Characteristics*
+*⬅️ Back to [README](../../README.md) &nbsp;|&nbsp; ➡️ Next Section: [Non-Functional System Characteristics](../non-functional-system-characteristics/NonFunctionalSystemCharacteristics.md)*
+
