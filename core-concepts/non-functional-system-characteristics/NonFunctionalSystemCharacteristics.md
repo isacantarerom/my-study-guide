@@ -86,4 +86,3 @@ Failure Models ─────────────────────�
 *⬅️ Back to [README](../../README.md) &nbsp;|&nbsp; ➡️ First Guide: [Availability](availability.md)*
 
 *⬅️ Previous Section [Preliminary System Design Concepts](../preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md) &nbsp;|&nbsp; ➡️ Next Section: [tbd](../../README.md)*
-

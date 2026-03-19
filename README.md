@@ -15,7 +15,7 @@ Learning something is already a success. These guides are here to accompany that
 | Section | Topics | Guide |
 |---------|--------|-------|
 | **Preliminary System Design Concepts** | Abstraction, RPC, Consistency Models, Failure Models | [Read →](core-concepts/preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md) |
-| **Non-Functional System Characteristics** | Availability, Reliability, Scalability, Fault Tolerance | [Read →](non-functional-system-characteristics/NonFunctionalSystemCharacteristics.md)* |
+| **Non-Functional System Characteristics** | Availability, Reliability, Scalability, Fault Tolerance | [Read →](core-concepts/non-functional-system-characteristics/NonFunctionalSystemCharacteristics.md) |
 | **Back-of-the-Envelope Calculations** | Estimating servers, storage, and bandwidth | Coming soon |
 | **Building Blocks** | DNS, Load Balancers, Databases, Caches, Queues, CDN, and more | Coming soon |
 

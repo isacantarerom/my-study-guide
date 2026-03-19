@@ -302,7 +302,7 @@ Each abstraction is earning its place by solving a real constraint.
 
 ---
 
-*⬅️ Previous: — &nbsp;|&nbsp; ➡️ Next: [Network Abstraction: RPC](networkAbstraction.md)*
+*⬅️ Previous: [Preliminary System Design Concepts](../preliminary-system-design-concepts/PreliminarySystemDesignConcepts.md)  &nbsp;|&nbsp; ➡️ Next: [Network Abstraction: RPC](networkAbstraction.md)*
 
 ---
 
