@@ -29,7 +29,17 @@ That definition sounds simple, but it contains an important word: *operational*.
 
 For most systems, availability is the non-functional characteristic users feel most directly. A user doesn't notice that your database uses eventual consistency. They absolutely notice when the app won't load.
 
-This is why availability tends to be the first non-functional requirement that gets discussed in system design — and why it's worth understanding deeply, not just as a number on an SLA.
+This is why availability tends to be the first non-functional requirement that gets discussed in system design — and why it's worth understanding deeply, not just as a number on an SLA (Service Level Agreement.).
+
+|Key Components of an SLA| Concept | Example |
+|-------------|----------------|-----------------|
+| Availability (Uptime) | Defines how often the system must be operational. | “99.9% uptime”|
+| Latency / Response Time | Sets performance expectations. | “Requests must respond within 200 ms” |
+| Throughput | Defines capacity under load. | “System handles 10,000 requests per second” |
+| Error Rate | Limits acceptable failures. | “< 0.1% failed requests” |
+| Durability (for storage systems) | Guarantees data won’t be lost. | “99.999999999% data durability” |
+| Recovery / Support | Defines incident response expectations. | “Critical issues resolved within 1 hour”|
+
 
 *(see [Percentiles & Latency Metrics](../extras/percentiles-and-latency-metrics.md))*
 
