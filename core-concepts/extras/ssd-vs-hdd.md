@@ -164,8 +164,9 @@ If data is rarely accessed → use HDD
 
 ### Rule of thumb
 
-Hot data → SSD
-Cold data → HDD
+- Hot data → SSD
+- Cold data → HDD
+
 ---
 
 ## 6. A Real System Design Example
@@ -205,13 +206,13 @@ Huge size + not accessed constantly
 ### What happens if you choose wrong?
 
 If you store your database on HDD:
-p50 = 20ms
-p99 = 800ms ← disk seeks killing you
+- p50 = 20ms
+- p99 = 800ms ← disk seeks killing you
 
 
 If you store everything on SSD:
-Great performance ✔
-Very expensive ✖
+- Great performance ✔
+- Very expensive ✖
 
 
 Good system design is about **balancing both**.
@@ -223,14 +224,15 @@ Good system design is about **balancing both**.
 ### Modern systems rarely choose just one
 
 They use **tiered storage**:
-Layer 1 (fastest): Cache (RAM)
-Layer 2: SSD (hot data)
-Layer 3: HDD / object storage (cold data)
+- Layer 1 (fastest): Cache (RAM)
+- Layer 2: SSD (hot data)
+- Layer 3: HDD / object storage (cold data)
 
 
 ---
 
 ### Healthy architecture
+
 Recent / frequent data → SSD
 Old / infrequent data → HDD
 

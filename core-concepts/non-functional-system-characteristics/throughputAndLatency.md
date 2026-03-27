@@ -149,6 +149,8 @@ The actual computation time — running business logic, executing queries, trans
 ### Serialization/Deserialization
 Converting data between formats (JSON encoding/decoding, Protobuf serialization) takes time. For high-frequency, small-payload services, this can be a meaningful fraction of total request time — which is one reason gRPC with Protobuf is faster than REST with JSON for internal services.
 
+*See → [GRPC vs REST](../extras/grpc-vs-rest.md) for a deeper explanation of GRPC and REST and how to chose between them.*
+
 ---
 
 ## 5. What Limits Throughput
