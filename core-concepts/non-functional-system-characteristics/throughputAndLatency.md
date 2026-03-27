@@ -101,6 +101,8 @@ At 1,000 requests/second, p99 latency affects 10 requests every second. Over an 
 **Reason 2: Tail latencies compound across dependencies.**
 If a request touches 10 services and each has a 1% chance of being slow, the probability that at least one service is slow is 1 - (0.99)^10 = ~10%. What was a 1% tail for each service becomes a 10% tail for the end-to-end request. This is the latency version of the dependency chain problem from [Availability](availability.md).
 
+*(→ [Understanding Percentiles](../extras/percentiles-and-latency-metrics.md) for a full breakdown of what p99 means and how to calculate it)*
+
 ---
 
 ## 4. What Causes Latency

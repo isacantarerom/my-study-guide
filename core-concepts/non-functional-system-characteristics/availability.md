@@ -31,6 +31,8 @@ For most systems, availability is the non-functional characteristic users feel m
 
 This is why availability tends to be the first non-functional requirement that gets discussed in system design — and why it's worth understanding deeply, not just as a number on an SLA.
 
+*(see [Percentiles & Latency Metrics](../extras/percentiles-and-latency-metrics.md))*
+
 ---
 
 ## 2. How Availability Is Measured
