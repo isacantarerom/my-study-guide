@@ -136,7 +136,7 @@ Network:       ~0.5ms (local) to 150ms+ (cross-continent)
 
 This is why caching is so powerful as a latency reduction tool — moving data from disk to memory can be a 1,000x improvement.
 
-*(→ [Understanding SSD vs HDD](../extras/ssd-vs-hdd.md) for a deeper explanation of why disk types differ by orders of magnitude and how to choose between them in real systems)*
+*See → [Understanding SSD vs HDD](../extras/ssd-vs-hdd.md) for a deeper explanation of why disk types differ by orders of magnitude and how to choose between them.*
 
 ### Queuing Latency
 When a system is under load, requests wait in queues — at the load balancer, at the application server's thread pool, at the database connection pool. **Queuing latency is often the dominant source of high tail latencies**, because it's unpredictable and can spike suddenly when load increases.
