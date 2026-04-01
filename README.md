@@ -29,6 +29,7 @@ While reading the main guides you will find thse concepts linked in them. If you
 
 
 I also highly reccommend taking a peek at [How to Approach a System Design Problem](core-concepts/extras/how-to-approach-system-design.md) independently on how familiarized you already are with the concept. It is always good to get a refresh.
+
 ---
 
 ## How to Use This Repo
