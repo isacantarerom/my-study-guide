@@ -90,4 +90,4 @@ Your system needs to handle a traffic spike (viral content, flash sale, breaking
 
 ---
 
-*⬅️ Back to [Building Blocks](../BuildingBlocks.md) &nbsp;|&nbsp; ➡️ Next Group: [Storage](../storage/Storage.md)*
+*⬅️ Back to [Building Blocks](../BuildingBlocks.md) &nbsp;| |&nbsp; ➡️ Deep Dive this group starting with: [DNS](dns.md) |  &nbsp;  ➡️➡️ Next Group: [Storage](../storage/Storage.md)*

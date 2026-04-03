@@ -16,7 +16,7 @@ Each building block answers a specific problem. The skill isn't memorizing how e
 
 ## The 16 Building Blocks — Grouped by Purpose
 
-Rather than following the syllabus order, we've grouped these by the problem they solve. This makes it easier to reason about which building block you need for a given situation.
+We've grouped these by the problem they solve. This makes it easier to reason about which building block you need for a given situation.
 
 ---
 
