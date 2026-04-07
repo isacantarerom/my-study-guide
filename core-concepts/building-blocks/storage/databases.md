@@ -47,7 +47,7 @@ Relational databases store data in **tables** — rows and columns, like a sprea
 users table:
   id | name  | email
   1  | Isa   | isa@email.com
-  2  | Alex  | alex@email.com
+  2  | Chris  | chris@email.com
 
 orders table:
   id | user_id | total  | status
@@ -163,7 +163,7 @@ Row key: "user_123"
 Store data as nodes (entities) and edges (relationships). Optimized for traversing relationships — finding connections between data points.
 
 ```
-Node: User(Isa) → FOLLOWS → User(Alex)
+Node: User(Isa) → FOLLOWS → User(Chris)
 Node: User(Isa) → LIKES → Post(System Design Guide)
 Node: Post(System Design Guide) → TAGGED_WITH → Topic(Distributed Systems)
 
