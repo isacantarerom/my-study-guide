@@ -167,7 +167,7 @@ If US-East is down:
           └── User in New York → US-West Data Center (failover)
 ```
 
-Global load balancing often works through **GeoDNS** (from the DNS guide) — the DNS server returns different IPs based on where the query originates. Some systems use dedicated GSLB appliances or services (AWS Global Accelerator, Cloudflare Load Balancing) that go beyond DNS to do real-time health checking and routing.
+Global load balancing often works through **GeoDNS** (from the [DNS](dns.md) guide) — the DNS server returns different IPs based on where the query originates. Some systems use dedicated GSLB appliances or services (AWS Global Accelerator, Cloudflare Load Balancing) that go beyond DNS to do real-time health checking and routing.
 
 ---
 
