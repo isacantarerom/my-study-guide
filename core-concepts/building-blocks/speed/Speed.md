@@ -73,4 +73,4 @@ A single database row is a write bottleneck → **Sharded Counters** to distribu
 
 ---
 
-*⬅️ Previous Group: [Storage](../storage/Storage.md) &nbsp;|&nbsp; ➡️ Next Group: [Communication](../communication/Communication.md)*
+*⬅️⬅️ Previous Group: [Storage](../storage/Storage.md) &nbsp; | &nbsp; ➡️ Deep Dive this group starting with: [Distributed Cache](distributed-cache.md)  | &nbsp; ➡️➡️ Next Group: [Communication](../communication/Communication.md)*
