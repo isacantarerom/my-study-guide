@@ -254,7 +254,7 @@ Two users who liked a post "at the same time" may see different counts depending
 
 ## 8. Real-World: How Twitter Handles Celebrity Like Counts
 
-When Beyoncé posts a tweet, hundreds of thousands of likes can arrive within seconds. A single counter would serialize under this load.
+When Taylor Swift posts a tweet, hundreds of thousands of likes can arrive within seconds. A single counter would serialize under this load.
 
 Twitter's approach (documented in engineering blog posts) combines several techniques:
 
