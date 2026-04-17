@@ -82,4 +82,4 @@ You need to reconstruct the order events happened in across services that don't 
 
 ---
 
-*⬅️ Previous Group: [Communication](../communication/Communication.md) &nbsp;|&nbsp; ➡️ Next Group: [Observability](../observability/Observability.md)*
+*⬅️⬅️ Previous Group: [Communication](../communication/Communication.md) &nbsp; | &nbsp; ➡️ Deep Dive this group starting with: [Distributed Task Scheduler](distributed-task-scheduler.md)  | &nbsp; ➡️➡️ Next Group: [Observability](../observability/Observability.md)*
