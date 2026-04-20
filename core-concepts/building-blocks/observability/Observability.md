@@ -102,4 +102,4 @@ You're designing a new system → plan observability into the architecture from 
 
 ---
 
-*⬅️ Previous Group: [Processing](../processing/Processing.md) &nbsp;|&nbsp; ➡️ Next Group: [Discovery](../discovery/Discovery.md)*
+*⬅️⬅️ Previous Group: [Processing](../processing/Processing.md) &nbsp;|&nbsp; ➡️ Deep Dive this group starting with: [Distributed Monitoring](distributed-monitoring.md)|&nbsp; ➡️➡️ Next Group: [Discovery](../discovery/Discovery.md)*
